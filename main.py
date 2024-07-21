@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.src.conf.config import settings
-from app.src.routes import auth
+from app.src.routes import auth, users
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,6 +24,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 cors_origins = [
     "*"
