@@ -1,16 +1,14 @@
-from datetime import datetime
-
 from fastapi import (APIRouter, Depends, UploadFile, File, HTTPException, status, BackgroundTasks, Request, Query)
 from sqlalchemy.orm import Session
 from pydantic import EmailStr
-import redis
 
 from app.src.database.db import get_db
 from app.src.database.models import User
 from app.src.repository import users as repository_users
+from app.src.repository import cars as repository_cars
 from app.src.services.auth import RoleChecker, auth_service
 from app.src.conf.config import settings
-from app.src.schemas import UserDb, UserPassword, UserNewPassword, RoleOptions
+from app.src.schemas import UserDb, UserPassword, UserNewPassword, RoleOptions, CarResponse
 from app.src.services.email import send_password_email, send_email
 from app.src.routes.auth import r
 
@@ -133,3 +131,26 @@ async def ban_unban_user(user_id: int,
     r.delete(f"user:{user.email}")
     message = await repository_users.ban_user(user, banned, db)
     return {"message": message}
+
+
+@router.patch('/me/add_car', response_model=CarResponse)
+async def add_car(car_license: str,
+                  current_user: User = Depends(auth_service.get_current_user),
+                  db: Session = Depends(get_db)) -> dict:
+    exist_car = await repository_cars.get_car_by_license(car_license, db)
+    if exist_car:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Car already exists")
+
+    new_car = await repository_cars.create_car(car_license, current_user.id, db)
+    return {"car": new_car, "detail": "Car successfully added"}
+
+
+@router.get('/me/cars')
+async def get_cars(current_user: User = Depends(auth_service.get_current_user),
+                   db: Session = Depends(get_db)):
+    cars = await repository_cars.get_user_cars(current_user.id, db)
+
+    if not cars:
+        raise HTTPException(status_code=404, detail=f"No cars found")
+    cars = [i.car_license for i in cars]
+    return cars

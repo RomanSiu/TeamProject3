@@ -24,7 +24,7 @@ class Parking(Base):
     __tablename__ = "parking"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    car_id: Mapped[int] = mapped_column(String(10))
+    car_id: Mapped[int] = mapped_column(ForeignKey("cars.id"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     move_in_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     move_out_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
@@ -38,9 +38,7 @@ class User(BaseTable):
     phone: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     password: Mapped[str] = mapped_column(String(100), nullable=False)
-    car_id: Mapped[list[Car]] = relationship()
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="user")
-    park_history: Mapped[list[Parking]] = relationship()
     balance: Mapped[float] = mapped_column(Float, default=0.0)
     banned: Mapped[bool] = mapped_column(Boolean, default=False)
     confirmed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
