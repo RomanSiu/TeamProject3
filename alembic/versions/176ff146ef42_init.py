@@ -1,8 +1,8 @@
 """Init
 
-Revision ID: d152008ee666
+Revision ID: 176ff146ef42
 Revises: 
-Create Date: 2024-07-19 19:39:04.598109
+Create Date: 2024-07-22 09:48:42.796124
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'd152008ee666'
+revision: str = '176ff146ef42'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,9 +25,11 @@ def upgrade() -> None:
     sa.Column('username', sa.String(length=50), nullable=False),
     sa.Column('phone', sa.String(length=13), nullable=False),
     sa.Column('email', sa.String(length=100), nullable=False),
-    sa.Column('password', sa.String(length=50), nullable=False),
+    sa.Column('password', sa.String(length=100), nullable=False),
     sa.Column('role', sa.String(length=20), nullable=False),
     sa.Column('balance', sa.Float(), nullable=False),
+    sa.Column('banned', sa.Boolean(), nullable=False),
+    sa.Column('confirmed', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
@@ -37,7 +39,7 @@ def upgrade() -> None:
     op.create_table('cars',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('car_license', sa.String(length=10), nullable=False),
-    sa.Column('baned', sa.Boolean(), nullable=False),
+    sa.Column('banned', sa.Boolean(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -45,10 +47,11 @@ def upgrade() -> None:
     )
     op.create_table('parking',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('car_id', sa.String(length=10), nullable=False),
+    sa.Column('car_id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('move_in_at', sa.DateTime(), nullable=False),
     sa.Column('move_out_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['car_id'], ['cars.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

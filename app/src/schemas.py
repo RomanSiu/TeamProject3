@@ -48,3 +48,12 @@ class TokenModel(BaseModel):
 
 class RequestEmail(BaseModel):
     email: EmailStr
+
+
+class Car(BaseModel):
+    car_license: str
+
+
+class CarResponse(BaseModel):
+    car: Car
+    detail: str
