@@ -18,6 +18,10 @@ async def get_user_by_username(username: str, db: Session) -> User | None:
     return db.query(User).filter(User.username == username).first()
 
 
+async def get_user_by_phone(phone: str, db: Session) -> User | None:
+    return db.query(User).filter(User.phone == phone).first()
+
+
 async def create_user(body: UserModel, db: Session) -> User:
     new_user = User(**body.dict())
     db.add(new_user)
