@@ -1,6 +1,6 @@
-from sqlalchemy import String, DateTime, ForeignKey, Boolean, Float
+from sqlalchemy import String, DateTime, ForeignKey, Boolean, Float, Interval
 from sqlalchemy.orm import declarative_base, mapped_column, Mapped, relationship
-from datetime import datetime
+from datetime import datetime, timedelta
 
 Base = declarative_base()
 
@@ -28,6 +28,8 @@ class Parking(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     move_in_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     move_out_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    parking_time: Mapped[int] = mapped_column(nullable=True)
+    parking_cost: Mapped[float] = mapped_column(Float, default=0.0)
 
 
 class User(BaseTable):
@@ -42,3 +44,12 @@ class User(BaseTable):
     balance: Mapped[float] = mapped_column(Float, default=0.0)
     banned: Mapped[bool] = mapped_column(Boolean, default=False)
     confirmed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    rate_id: Mapped[int] = mapped_column(ForeignKey("rates.id"), default=1)
+
+
+class Rate(BaseTable):
+    __tablename__ = "rates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    rate_name: Mapped[str] = mapped_column(String(50))
+    price: Mapped[float] = mapped_column(Float)
