@@ -19,6 +19,10 @@ async def get_entry_by_car_id(car_id: int, db: Session):
     return db.query(Parking).filter(Parking.car_id == car_id).order_by(Parking.move_in_at.desc()).first()
 
 
+async def get_all_entries_by_car_id(car_id: int, db: Session):
+    return db.query(Parking).filter(Parking.car_id == car_id).all()
+
+
 async def close_entry_rep(entry: Parking, db: Session):
     entry.move_out_at = datetime.now()
     entry.parking_time = int((entry.move_out_at - entry.move_in_at).total_seconds())
@@ -35,15 +39,3 @@ async def parking_fee(entry: Parking, free: bool, db: Session):
         user.balance -= price
         db.commit()
     return
-
-
-async def find_rate(rate_name: str, db: Session):
-    return db.query(Rate).filter(Rate.rate_name == rate_name).first()
-
-
-async def add_rate(rate_name: str, price: float, db: Session):
-    rate = Rate(rate_name=rate_name, price=price)
-    db.add(rate)
-    db.commit()
-    db.refresh(rate)
-    return rate
