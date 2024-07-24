@@ -1,6 +1,7 @@
 from sqlalchemy import String, DateTime, ForeignKey, Boolean, Float, Interval
 from sqlalchemy.orm import declarative_base, mapped_column, Mapped, relationship
-from datetime import datetime, timedelta
+from sqlalchemy.schema import Sequence
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -50,6 +51,6 @@ class User(BaseTable):
 class Rate(BaseTable):
     __tablename__ = "rates"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(Sequence('rates_id_seq', start=2, increment=1), primary_key=True)
     rate_name: Mapped[str] = mapped_column(String(50))
     price: Mapped[float] = mapped_column(Float)
