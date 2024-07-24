@@ -27,8 +27,9 @@ async def create_entry(car_license: str,
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Car is blocked")
 
     last_entry = await repository_parking.get_entry_by_car_id(car.id, db)
-    if last_entry.parking_cost == 0:
-        await close_entry(car_license, True, db)
+    if last_entry:
+        if last_entry.parking_cost == 0:
+            await close_entry(car_license, True, db)
 
     user = await get_user_by_id(car.user_id, db)
 
@@ -48,6 +49,12 @@ async def close_entry(car_license: str = None,
     #     camera make photo
     #     call def with model, to take car license
     car = await get_car_by_license(car_license, db)
+
+    if car is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No car found")
+    elif car.banned:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Car is blocked")
+
     entry = await repository_parking.get_entry_by_car_id(car.id, db)
 
     if entry is None:
