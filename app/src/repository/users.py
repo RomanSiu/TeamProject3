@@ -68,3 +68,9 @@ async def change_user_email(user: User, email: str, db: Session) -> User:
     current_user.confirmed = False
     db.commit()
     return current_user
+
+
+async def change_user_rate(user: User, rate_id: int, db: Session) -> User:
+    user.rate = rate_id
+    db.commit()
+    return user

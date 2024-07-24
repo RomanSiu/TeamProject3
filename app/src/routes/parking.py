@@ -7,6 +7,7 @@ from app.src.database.db import get_db
 from app.src.repository.cars import get_car_by_license, ban_car
 from app.src.repository.users import get_user_by_id
 from app.src.repository import parking as repository_parking
+from app.src.repository import rates as repository_rates
 from app.src.schemas import EntryResponse
 from app.src.services.auth import RoleChecker
 from app.src.database.models import User
@@ -70,20 +71,48 @@ async def add_new_rate(rate_name: str,
                        price: float,
                        current_user: User = Depends(RoleChecker(allowed_roles=["admin"])),
                        db: Session = Depends(get_db)):
-    rate = await repository_parking.find_rate(rate_name, db)
+    rate = await repository_rates.find_rate(rate_name, db)
 
     if rate:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Rate already exist")
-    new_rate = await repository_parking.add_rate(rate_name, price, db)
+    new_rate = await repository_rates.add_rate(rate_name, price, db)
     return new_rate
 
 
-@router.patch('/cars/ban')
-async def ban_unban_user(car_license: str,
-                         banned: bool,
-                         current_user: User = Depends(RoleChecker(['admin'])),
-                         db: Session = Depends(get_db)
-                         ) -> dict:
+@router.patch("/rate/change")
+async def change_rate(rate_name: str, price: float,
+                      current_user: User = Depends(RoleChecker(allowed_roles=["admin"])),
+                      db: Session = Depends(get_db)):
+    rate = await repository_rates.find_rate(rate_name, db)
+
+    if not rate:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rate not found")
+
+    rate = await repository_rates.change_rate(rate, price, db)
+    return rate
+
+
+@router.delete("/rate/delete")
+async def delete_rate(rate_name: str,
+                      current_user: User = Depends(RoleChecker(allowed_roles=["admin"])),
+                      db: Session = Depends(get_db)):
+    rate = await repository_rates.find_rate(rate_name, db)
+
+    if not rate:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rate not found")
+    elif rate.id == 1:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You cannot delete standard rate")
+
+    message = await repository_rates.delete_rate(rate, db)
+    return message
+
+
+@router.patch("/cars/ban")
+async def ban_unban_car(car_license: str,
+                        banned: bool,
+                        current_user: User = Depends(RoleChecker(['admin'])),
+                        db: Session = Depends(get_db)
+                        ) -> dict:
     car = await get_car_by_license(car_license, db)
 
     if car is None:

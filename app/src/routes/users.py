@@ -6,6 +6,7 @@ from app.src.database.db import get_db
 from app.src.database.models import User
 from app.src.repository import users as repository_users
 from app.src.repository import cars as repository_cars
+from app.src.repository import rates as repository_rates
 from app.src.services.auth import RoleChecker, auth_service
 from app.src.conf.config import settings
 from app.src.schemas import UserDb, UserPassword, UserNewPassword, RoleOptions, CarResponse
@@ -154,3 +155,36 @@ async def get_cars(current_user: User = Depends(auth_service.get_current_user),
         raise HTTPException(status_code=404, detail=f"No cars found")
     cars = [i.car_license for i in cars]
     return cars
+
+
+@router.patch('/{user_id}/rate')
+async def change_rate(user_id: int, rate_id: int,
+                      current_user: User = Depends(RoleChecker(['admin'])),
+                      db: Session = Depends(get_db)):
+    user = await repository_users.get_user_by_id(user_id, db)
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    rate = await repository_rates.get_rate_by_id(rate_id, db)
+
+    if not rate:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rate not found")
+
+    user = await repository_users.change_user_rate(user, rate_id, db)
+    return user
+
+
+@router.delete('/me/car/delete')
+async def delete_car(car_license: str,
+                     current_user: User = Depends(auth_service.get_current_user),
+                     db: Session = Depends(get_db)):
+    car = await repository_cars.get_car_by_license(car_license, db)
+
+    if not car:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+    elif car.user_id != current_user.id and current_user.role != 'admin':
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error")
+
+    message = await repository_cars.delete_car(car, db)
+    return message
