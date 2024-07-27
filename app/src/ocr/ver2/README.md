@@ -6,13 +6,14 @@
     - ``model_linear.bin``: SVC kernel = 'linear'
     - ``model_poly.bin``: SVC kernel = 'poly'
     - ``model_rbf.bin``: SVC kernel = 'rbf'
+      
     Показники моделей (Cross Validation Result) збережені у файлі ``models_accuracy.txt``
-    Викоритувались навчальні файли з буквами і цифрами (на git не завантажені)
+    Використувались навчальні файли з буквами і цифрами (на git не завантажені)
 
 ## Image_to_Text.py
 - Основний модуль з функцією розпізнавання номерних знаків авто.
     Використання: car_number = **Image_to_Text.CarPlateRecognition(car_image)**
-    Input: car_image
+    Input: car_image (у форматі .jpeg, .jpg або .png)
     Output: string
 - За замовченням використовується модель ``model_linear.bin``
 
