@@ -12,9 +12,9 @@
 
 ## Image_to_Text.py
 - Основний модуль з функцією розпізнавання номерних знаків авто.
-    Використання: car_number = **Image_to_Text.CarPlateRecognition(car_image)**
-    Input: car_image (у форматі .jpeg, .jpg або .png)
-    Output: string
+    - Використання: car_number = **Image_to_Text.CarPlateRecognition(car_image)**
+    - Input: car_image (у форматі .jpeg, .jpg або .png)
+    - Output: string
 - За замовченням використовується модель ``model_linear.bin``
 
 ## demo.py
