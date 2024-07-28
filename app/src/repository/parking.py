@@ -39,3 +39,7 @@ async def parking_fee(entry: Parking, free: bool, db: Session):
         user.balance -= price
         db.commit()
     return
+
+
+async def get_bills(car_id: int, db: Session):
+    return db.query(Parking).filter(Parking.car_id == car_id).all()

@@ -7,8 +7,8 @@ from app.src.database.models import User
 from app.src.repository import users as repository_users
 from app.src.repository import cars as repository_cars
 from app.src.repository import rates as repository_rates
+from app.src.repository import parking as repository_parking
 from app.src.services.auth import RoleChecker, auth_service
-from app.src.conf.config import settings
 from app.src.schemas import UserDb, UserPassword, UserNewPassword, RoleOptions, CarResponse
 from app.src.services.email import send_password_email, send_email
 from app.src.routes.auth import r
@@ -188,3 +188,26 @@ async def delete_car(car_license: str,
 
     message = await repository_cars.delete_car(car, db)
     return message
+
+
+@router.get('/me/parking_bills')
+async def get_parking_bills(car_license: str,
+                            current_user: User = Depends(auth_service.get_current_user),
+                            db: Session = Depends(get_db)):
+    car = await repository_cars.get_car_by_license(car_license, db)
+
+    if not car:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+    elif car.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error")
+
+    bills = await repository_parking.get_bills(car.id, db)
+    new_bills = []
+    for bill in bills:
+        obill = {"car license": car.car_license,
+                 "move in": bill.move_in_at.strftime("%H:%M:%S, %m-%d-%Y"),
+                 "move out": bill.move_out_at.strftime("%H:%M:%S, %m-%d-%Y"),
+                 "total amount": f"{bill.parking_cost} ₴"}
+        new_bills.append(obill)
+    return new_bills
+
