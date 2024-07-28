@@ -74,3 +74,9 @@ async def change_user_rate(user: User, rate_id: int, db: Session) -> User:
     user.rate = rate_id
     db.commit()
     return user
+
+
+async def change_user_balance(money: float, user: User, db: Session) -> User:
+    user.balance = user.balance + money
+    db.commit()
+    return user
