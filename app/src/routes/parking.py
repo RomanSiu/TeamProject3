@@ -1,6 +1,6 @@
 from http.client import HTTPException
 
-from fastapi import (APIRouter, Depends, HTTPException, status)
+from fastapi import (APIRouter, Depends, HTTPException, status, UploadFile, File)
 from sqlalchemy.orm import Session
 
 from app.src.database.db import get_db
@@ -11,15 +11,17 @@ from app.src.repository import rates as repository_rates
 from app.src.schemas import EntryResponse
 from app.src.services.auth import RoleChecker
 from app.src.database.models import User
+from app.src.ocr.ver2.demo import demo
 
 router = APIRouter(prefix="/parking", tags=["parking"])
 
 
 @router.post("/entry")
-async def create_entry(car_license: str,
+async def create_entry(car_img: UploadFile = File(...),
                        db: Session = Depends(get_db)):
     # camera make photo
-    # call def with model, to take car license
+    car_license = demo(car_img.file)
+    print(car_license)
     car = await get_car_by_license(car_license, db)
 
     if car is None:
@@ -43,12 +45,13 @@ async def create_entry(car_license: str,
 
 
 @router.post("/entry/close", response_model=EntryResponse)
-async def close_entry(car_license: str = None,
+async def close_entry(car_img: UploadFile = File(...),
                       free: bool = False,
                       db: Session = Depends(get_db)):
     # if car_license is None:
     #     camera make photo
     #     call def with model, to take car license
+    car_license = demo(car_img.file)
     car = await get_car_by_license(car_license, db)
 
     if car is None:

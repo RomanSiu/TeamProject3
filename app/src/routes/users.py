@@ -1,6 +1,8 @@
 from fastapi import (APIRouter, Depends, UploadFile, File, HTTPException, status, BackgroundTasks, Request, Query)
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import EmailStr
+import pandas as pd
 
 from app.src.database.db import get_db
 from app.src.database.models import User
@@ -192,6 +194,7 @@ async def delete_car(car_license: str,
 
 @router.get('/me/parking_bills')
 async def get_parking_bills(car_license: str,
+                            csv_file: bool = False,
                             current_user: User = Depends(auth_service.get_current_user),
                             db: Session = Depends(get_db)):
     car = await repository_cars.get_car_by_license(car_license, db)
@@ -202,6 +205,9 @@ async def get_parking_bills(car_license: str,
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error")
 
     bills = await repository_parking.get_bills(car.id, db)
+
+    if not bills:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no bills for this car")
     new_bills = []
     for bill in bills:
         obill = {"car license": car.car_license,
@@ -209,5 +215,13 @@ async def get_parking_bills(car_license: str,
                  "move out": bill.move_out_at.strftime("%H:%M:%S, %m-%d-%Y"),
                  "total amount": f"{bill.parking_cost} ₴"}
         new_bills.append(obill)
+
+    if csv_file:
+        df = pd.DataFrame(new_bills)
+        return StreamingResponse(
+            iter([df.to_csv(index=False)]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=bills.csv"}
+        )
     return new_bills
 
