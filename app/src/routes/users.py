@@ -164,6 +164,7 @@ async def get_balance(current_user: User = Depends(auth_service.get_current_user
                       db: Session = Depends(get_db)):
     return current_user
 
+
 @router.patch('/me/balance/change', response_model=BalanceResponse)
 async def change_balance(money: float,
                          current_user: User = Depends(auth_service.get_current_user),
