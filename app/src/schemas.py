@@ -65,3 +65,8 @@ class EntryResponse(BaseModel):
     move_out_at: datetime
     parking_time: timedelta
     parking_cost: float
+
+
+class BalanceResponse(BaseModel):
+    username: str
+    balance: float

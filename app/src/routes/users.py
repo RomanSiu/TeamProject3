@@ -11,7 +11,7 @@ from app.src.repository import cars as repository_cars
 from app.src.repository import rates as repository_rates
 from app.src.repository import parking as repository_parking
 from app.src.services.auth import RoleChecker, auth_service
-from app.src.schemas import UserDb, UserPassword, UserNewPassword, RoleOptions, CarResponse
+from app.src.schemas import UserDb, UserPassword, UserNewPassword, RoleOptions, CarResponse, BalanceResponse
 from app.src.services.email import send_password_email, send_email
 from app.src.routes.auth import r
 
@@ -157,6 +157,20 @@ async def get_cars(current_user: User = Depends(auth_service.get_current_user),
         raise HTTPException(status_code=404, detail=f"No cars found")
     cars = [i.car_license for i in cars]
     return cars
+
+
+@router.get('/me/balance', response_model=BalanceResponse)
+async def get_balance(current_user: User = Depends(auth_service.get_current_user),
+                      db: Session = Depends(get_db)):
+    return current_user
+
+@router.patch('/me/balance/change', response_model=BalanceResponse)
+async def change_balance(money: float,
+                         current_user: User = Depends(auth_service.get_current_user),
+                         db: Session = Depends(get_db)):
+    user = await repository_users.change_user_balance(money, current_user, db)
+    r.delete(f"user:{user.email}")
+    return user
 
 
 @router.patch('/{user_id}/rate')
