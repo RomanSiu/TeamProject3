@@ -9,6 +9,7 @@ from app.src.schemas import UserModel, RoleOptions
 async def get_user_by_id(user_id: int, db: Session) -> User | None:
     """
     Retrieves a user with the specified id.
+
     Args:
         user_id (int): id of the user to retrieve.
         db (Session): The database session.

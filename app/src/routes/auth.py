@@ -19,6 +19,21 @@ security = HTTPBearer()
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def signup(body: UserModel, background_tasks: BackgroundTasks, request: Request, db: Session = Depends(get_db)):
+    """
+    User sign-up endpoint
+
+    Args:
+        body (UserModel): user info dictionary
+        background_tasks (BackgroundTasks): async ring scheduler
+        request (Request): request object
+        db (Session, optional): database session.
+
+    Raises:
+        HTTPException: 409 Account already exists
+
+    Returns:
+        UserResponse: execution result
+    """
     exist_user = await repository_users.get_user_by_email(body.email, db)
     if exist_user:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Account already exists")
@@ -39,6 +54,21 @@ async def signup(body: UserModel, background_tasks: BackgroundTasks, request: Re
 
 @router.post("/login", response_model=TokenModel)
 async def login(body: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """
+    User login endpoint
+
+    Args:
+        body (OAuth2PasswordRequestForm, optional): authentication form.
+        db (Session, optional): database session.
+
+    Raises:
+        HTTPException: 401 Invalid email
+        HTTPException: 401 Email not confirmed
+        HTTPException: 401 Invalid password
+
+    Returns:
+        [TokenModel]: token dictionary {access_token, refresh_token, token_type}
+    """
     user = await repository_users.get_user_by_email(body.username, db)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email")
@@ -54,6 +84,19 @@ async def login(body: OAuth2PasswordRequestForm = Depends(), db: Session = Depen
 
 @router.get('/refresh_token', response_model=TokenModel)
 async def refresh_token(credentials: HTTPAuthorizationCredentials = Security(security), db: Session = Depends(get_db)):
+    """
+    Refresh access tokens
+
+    Args:
+        credentials (HTTPAuthorizationCredentials): current refresh token.
+        db (Session): database session.
+
+    Raises:
+        HTTPException: 401 Invalid refresh token
+
+    Returns:
+        [TokenModel]: {access_token, refresh_token, token_type}
+    """
     token = credentials.credentials
     email = await auth_service.decode_refresh_token(token)
     user = await repository_users.get_user_by_email(email, db)
@@ -69,6 +112,21 @@ async def refresh_token(credentials: HTTPAuthorizationCredentials = Security(sec
 
 @router.get('/confirmed_email/{token}')
 async def confirmed_email(token: str, db: Session = Depends(get_db)):
+    """
+    API endpoint for email confirmation
+
+    Correct use: http call by pressing a button in email sent to the user.
+
+    Args:
+        token (str): access token
+        db (Session, optional): database session.
+
+    Raises:
+        HTTPException: 400 Verification error
+
+    Returns:
+        message: message
+    """
     email = await auth_service.get_email_from_token(token)
     user = await repository_users.get_user_by_email(email, db)
     if user is None:
@@ -84,6 +142,18 @@ async def request_email(body: RequestEmail,
                         background_tasks: BackgroundTasks,
                         request: Request,
                         db: Session = Depends(get_db)):
+    """
+    Request email for password reset
+
+    Args:
+        body (RequestEmail): object with email request parameters
+        background_tasks (BackgroundTasks): async ring scheduler
+        request (Request): request object
+        db (Session, optional): database session.
+
+    Returns:
+        message: message
+    """
     user = await repository_users.get_user_by_email(body.email, db)
 
     if user.confirmed:
@@ -96,6 +166,16 @@ async def request_email(body: RequestEmail,
 @router.post('/logout')
 async def logout(token: str = Depends(auth_service.oauth2_scheme),
                  _: User = Depends(auth_service.get_current_user)):
+    """
+    User logout endpoint
+
+    Args:
+        token (str, optional): The access token for the current user.
+        _ (User, optional): Current user data.
+
+    Returns:
+        message: message
+    """
     r.set(token, 1)
     r.expire(token, 900)
     return {"message": "Logged out"}
