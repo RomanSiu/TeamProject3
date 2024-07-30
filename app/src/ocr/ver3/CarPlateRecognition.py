@@ -133,4 +133,3 @@ def main(car_image):
 
 #CALL:  car_number = main(short_filename_for_car_image)
 
-print(main('13.jpeg'))
