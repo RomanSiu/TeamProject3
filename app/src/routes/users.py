@@ -1,16 +1,17 @@
-from datetime import datetime
-
 from fastapi import (APIRouter, Depends, UploadFile, File, HTTPException, status, BackgroundTasks, Request, Query)
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import EmailStr
-import redis
+import pandas as pd
 
 from app.src.database.db import get_db
 from app.src.database.models import User
 from app.src.repository import users as repository_users
+from app.src.repository import cars as repository_cars
+from app.src.repository import rates as repository_rates
+from app.src.repository import parking as repository_parking
 from app.src.services.auth import RoleChecker, auth_service
-from app.src.conf.config import settings
-from app.src.schemas import UserDb, UserPassword, UserNewPassword, RoleOptions
+from app.src.schemas import UserDb, UserPassword, UserNewPassword, RoleOptions, CarResponse, BalanceResponse
 from app.src.services.email import send_password_email, send_email
 from app.src.routes.auth import r
 
@@ -18,8 +19,16 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/me")
-async def read_users_me(current_user: User = Depends(auth_service.get_current_user),
-                        db: Session = Depends(get_db)) -> dict:
+async def read_users_me(current_user: User = Depends(auth_service.get_current_user)) -> dict:
+    """
+    Get current user details
+
+    Args:
+        current_user (User, optional): current user.
+
+    Returns:
+        user_info: dict with user details
+    """
     user_info = {"username": current_user.username,
                  "email": current_user.email,
                  "role": current_user.role,
@@ -29,6 +38,16 @@ async def read_users_me(current_user: User = Depends(auth_service.get_current_us
 
 @router.get("/{username}")
 async def read_users(username: str, db: Session = Depends(get_db)) -> dict:
+    """
+    Get user details
+
+    Args:
+        username (str): username of the user.
+        db (Session): database session.
+
+    Returns:
+        user_info: dict with user details
+    """
     user = await repository_users.get_user_by_username(username, db)
     if user is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username")
@@ -45,6 +64,25 @@ async def update_user(background_tasks: BackgroundTasks,
                       email: EmailStr | None = None,
                       current_user: User = Depends(auth_service.get_current_user),
                       db: Session = Depends(get_db)):
+    """
+    Change user username or email
+
+    Args:
+        background_tasks (BackgroundTasks): async ring scheduler.
+        request (Request): request object.
+        token (str): The access token for the current user.
+        username (str, optional): New username for the user. Default is None.
+        email (str, optional): New email for the user. Default is None.
+        current_user (User): current user.
+        db (Session): database session.
+
+    Raises:
+        HTTPException: 409 Username already exists
+        HTTPException: 409 Email already exists
+
+    Returns:
+        [UserDb]: user object
+    """
     if username and username != current_user.username:
         user_check_username = await repository_users.get_user_by_username(username, db)
         if user_check_username:
@@ -67,6 +105,20 @@ async def update_user(background_tasks: BackgroundTasks,
 async def change_password(body: UserPassword,
                           current_user: User = Depends(auth_service.get_current_user),
                           db: Session = Depends(get_db)) -> dict:
+    """
+    Change password
+
+    Args:
+        body (UserPassword): UserPassword object.
+        current_user (User): current user.
+        db (Session): database session.
+
+    Raises:
+        HTTPException: 401 Invalid password
+
+    Returns:
+        message: message
+    """
     if not auth_service.verify_password(body.old_password, current_user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
     message = await auth_service.update_password(current_user, body.new_password, db)
@@ -79,6 +131,18 @@ async def forgot_password(body: UserNewPassword,
                           background_tasks: BackgroundTasks,
                           request: Request,
                           db: Session = Depends(get_db)) -> dict:
+    """
+    Request password reset endpoint
+
+    Args:
+        body (UserNewPassword): Data to reset user password (email, new_password).
+        background_tasks (BackgroundTasks): async ring scheduler
+        request (Request): The request to send email.
+        db (Session): database session.
+
+    Returns:
+        message: message
+    """
     message = {"message": "Email to reset your password was sent"}
     try:
         user = await repository_users.get_user_by_email(body.email, db)
@@ -93,6 +157,20 @@ async def forgot_password(body: UserNewPassword,
 
 @router.get('/reset_password/{token}')
 async def reset_password(token: str, db: Session = Depends(get_db)) -> dict:
+    """
+    Reset password endpoint\n
+    Should be called from the URL sent to user's email
+
+    Args:
+        token (str): The token that was sent via email to reset the password.
+        db (Session): database session.
+
+    Raises:
+        HTTPException: 400 Verification error
+
+    Returns:
+        message: message
+    """
     email = await auth_service.get_email_from_token(token)
     password = await auth_service.get_password_from_token(token)
     user = await repository_users.get_user_by_email(email, db)
@@ -107,6 +185,24 @@ async def change_user_role(user_id: int,
                            new_role: RoleOptions = Query(default=RoleOptions.user),
                            current_user: User = Depends(RoleChecker(allowed_roles=["admin"])),
                            db: Session = Depends(get_db)):
+    """
+    Change user's role\n
+    Available for admin role only.
+
+    Args:
+        user_id (int): id of the user.
+        new_role (RoleOptions): new role.
+        current_user (User):current user.
+        db (Session): database session.
+
+    Raises:
+        HTTPException: 400 You cannot change your own role
+        HTTPException: 403 Insufficient permissions to modify to admin
+        HTTPException: 404 User not found
+
+    Returns:
+        [UserDb]: user object
+    """
     user = await repository_users.get_user_by_id(user_id, db)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -123,6 +219,23 @@ async def ban_unban_user(user_id: int,
                          current_user: User = Depends(RoleChecker(['admin'])),
                          db: Session = Depends(get_db)
                          ) -> dict:
+    """
+    Endpoint for banning/unbanning users\n
+    Available for admin role only.
+
+    Args:
+        user_id (int): id of the user to ban
+        banned (bool): True = banned, False = unbanned
+        current_user (User): current user.
+        db (Session): database session.
+
+    Raises:
+        HTTPException: 400 Verification error
+        HTTPException: 400 You cannot ban yourself
+
+    Returns:
+        message: message
+    """
     if user_id == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot ban/unban yourself")
 
@@ -133,3 +246,109 @@ async def ban_unban_user(user_id: int,
     r.delete(f"user:{user.email}")
     message = await repository_users.ban_user(user, banned, db)
     return {"message": message}
+
+
+@router.patch('/me/add_car', response_model=CarResponse)
+async def add_car(car_license: str,
+                  current_user: User = Depends(auth_service.get_current_user),
+                  db: Session = Depends(get_db)) -> dict:
+    exist_car = await repository_cars.get_car_by_license(car_license, db)
+    if exist_car:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Car already exists")
+
+    new_car = await repository_cars.create_car(car_license, current_user.id, db)
+    return {"car": new_car, "detail": "Car successfully added"}
+
+
+@router.get('/me/cars')
+async def get_cars(current_user: User = Depends(auth_service.get_current_user),
+                   db: Session = Depends(get_db)):
+    cars = await repository_cars.get_user_cars(current_user.id, db)
+
+    if not cars:
+        raise HTTPException(status_code=404, detail=f"No cars found")
+    cars = [i.car_license for i in cars]
+    return cars
+
+
+@router.get('/me/balance', response_model=BalanceResponse)
+async def get_balance(current_user: User = Depends(auth_service.get_current_user),
+                      db: Session = Depends(get_db)):
+    return current_user
+
+
+@router.patch('/me/balance/change', response_model=BalanceResponse)
+async def change_balance(money: float,
+                         current_user: User = Depends(auth_service.get_current_user),
+                         db: Session = Depends(get_db)):
+    user = await repository_users.change_user_balance(money, current_user, db)
+    r.delete(f"user:{user.email}")
+    return user
+
+
+@router.patch('/{user_id}/rate')
+async def change_rate(user_id: int, rate_id: int,
+                      current_user: User = Depends(RoleChecker(['admin'])),
+                      db: Session = Depends(get_db)):
+    user = await repository_users.get_user_by_id(user_id, db)
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    rate = await repository_rates.get_rate_by_id(rate_id, db)
+
+    if not rate:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rate not found")
+
+    user = await repository_users.change_user_rate(user, rate_id, db)
+    return user
+
+
+@router.delete('/me/car/delete')
+async def delete_car(car_license: str,
+                     current_user: User = Depends(auth_service.get_current_user),
+                     db: Session = Depends(get_db)):
+    car = await repository_cars.get_car_by_license(car_license, db)
+
+    if not car:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+    elif car.user_id != current_user.id and current_user.role != 'admin':
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error")
+
+    message = await repository_cars.delete_car(car, db)
+    return message
+
+
+@router.get('/me/parking_bills')
+async def get_parking_bills(car_license: str,
+                            csv_file: bool = False,
+                            current_user: User = Depends(auth_service.get_current_user),
+                            db: Session = Depends(get_db)):
+    car = await repository_cars.get_car_by_license(car_license, db)
+
+    if not car:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+    elif car.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error")
+
+    bills = await repository_parking.get_bills(car.id, db)
+
+    if not bills:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no bills for this car")
+    new_bills = []
+    for bill in bills:
+        obill = {"car license": car.car_license,
+                 "move in": bill.move_in_at.strftime("%H:%M:%S, %m-%d-%Y"),
+                 "move out": bill.move_out_at.strftime("%H:%M:%S, %m-%d-%Y"),
+                 "total amount": f"{bill.parking_cost} ₴"}
+        new_bills.append(obill)
+
+    if csv_file:
+        df = pd.DataFrame(new_bills)
+        return StreamingResponse(
+            iter([df.to_csv(index=False)]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=bills.csv"}
+        )
+    return new_bills
+

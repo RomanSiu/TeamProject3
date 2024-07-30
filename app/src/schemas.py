@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
-from datetime import datetime
+from datetime import timedelta, datetime
 from enum import Enum
 
 
@@ -48,3 +48,25 @@ class TokenModel(BaseModel):
 
 class RequestEmail(BaseModel):
     email: EmailStr
+
+
+class Car(BaseModel):
+    car_license: str
+
+
+class CarResponse(BaseModel):
+    car: Car
+    detail: str
+
+
+class EntryResponse(BaseModel):
+    car_id: int
+    move_in_at: datetime
+    move_out_at: datetime
+    parking_time: timedelta
+    parking_cost: float
+
+
+class BalanceResponse(BaseModel):
+    username: str
+    balance: float

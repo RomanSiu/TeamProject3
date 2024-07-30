@@ -1,18 +1,20 @@
 import pickle
+
 from skimage.io import imread
 from skimage.measure import label, regionprops
 from skimage.transform import resize
-from Image_to_Text import GetPlate, GetChars
+
+from app.src.ocr.ver2.Image_to_Text import GetPlate, GetChars
 
 
-def demo():
-    image_path = '../data/09.jpg'  # <<< Input demo file
-    car_image = None
-
+def demo(car_image):
+    # image_path = '../data/09.jpg'  # <<< Input demo file
+    # car_image = None
+    #
     try:
-        car_image = imread(image_path, as_gray=True)
+        car_image = imread(car_image, as_gray=True)
     except:
-        print(f'[ERROR] can"t read file: {image_path}')
+        print(f'[ERROR] can"t read file: {car_image}')
         return
 
     plate_objects = GetPlate(car_image)
@@ -27,7 +29,7 @@ def demo():
         print('[ERROR] 0 characters found')
         return ''
         
-    model = pickle.load(open('model_linear.bin', 'rb'))
+    model = pickle.load(open('app/src/ocr/ver2/model_linear.bin', 'rb'))
     # model = pickle.load(open('model02.bin', 'rb'))
     # model = pickle.load(open('model_poly.bin', 'rb'))
     # model = pickle.load(open('model_rbf.bin', 'rb'))
@@ -49,11 +51,7 @@ def demo():
 
     if len(rightplate_string):
         print(f"[INFO] {len(rightplate_string)} characters were recognized")
-        print(f'>>> Image: {image_path} ==>  Number: {rightplate_string}')
+        print(f'Number: {rightplate_string}')
+        return rightplate_string
     else:
         print('[ERROR] can"t recognize any char')
-
-
-if __name__ == "__main__":
-    demo()
-
