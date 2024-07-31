@@ -11,7 +11,7 @@ from app.src.repository import rates as repository_rates
 from app.src.schemas import EntryResponse
 from app.src.services.auth import RoleChecker
 from app.src.database.models import User
-from app.src.ocr.ver2.demo import demo
+from app.src.ocr.ver3.CarPlateRecognition import main
 
 router = APIRouter(prefix="/parking", tags=["parking"])
 
@@ -20,8 +20,7 @@ router = APIRouter(prefix="/parking", tags=["parking"])
 async def create_entry(car_img: UploadFile = File(...),
                        db: Session = Depends(get_db)):
     # camera make photo
-    car_license = demo(car_img.file)
-    print(car_license)
+    car_license = main(car_img.filename)
     car = await get_car_by_license(car_license, db)
 
     if car is None:
@@ -32,7 +31,7 @@ async def create_entry(car_img: UploadFile = File(...),
     last_entry = await repository_parking.get_entry_by_car_id(car.id, db)
     if last_entry:
         if last_entry.parking_cost == 0:
-            await close_entry(car_license, True, db)
+            await close_entry(car_license=car_license, free=True, db=db)
 
     user = await get_user_by_id(car.user_id, db)
 
@@ -46,12 +45,14 @@ async def create_entry(car_img: UploadFile = File(...),
 
 @router.post("/entry/close", response_model=EntryResponse)
 async def close_entry(car_img: UploadFile = File(...),
+                      car_license: str = None,
                       free: bool = False,
                       db: Session = Depends(get_db)):
     # if car_license is None:
     #     camera make photo
     #     call def with model, to take car license
-    car_license = demo(car_img.file)
+    if not car_license:
+        car_license = main(car_img.filename)
     car = await get_car_by_license(car_license, db)
 
     if car is None:
