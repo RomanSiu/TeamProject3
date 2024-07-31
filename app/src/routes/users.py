@@ -301,6 +301,7 @@ async def change_rate(user_id: int, rate_id: int,
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rate not found")
 
     user = await repository_users.change_user_rate(user, rate_id, db)
+    r.delete(f"user:{user.email}")
     return user
 
 

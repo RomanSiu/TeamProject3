@@ -193,7 +193,7 @@ async def change_user_rate(user: User, rate_id: int, db: Session) -> User:
     Returns:
         [User]: Updated user.
     """
-    user.rate = rate_id
+    user.rate_id = rate_id
     db.commit()
     return user
 

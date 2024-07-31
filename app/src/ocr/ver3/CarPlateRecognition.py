@@ -1,4 +1,5 @@
 import pickle
+
 import numpy as np
 import cv2
 from skimage.measure import regionprops, label
@@ -10,7 +11,7 @@ from skimage.measure import label, regionprops
 def model_load(name):
     model = pickle.load(open(name, 'rb'))
     # model = pickle.load(open('model_big6_rbf.bin', 'rb'))
-    w = pickle.load(open('model_w.bin', 'rb'))
+    w = pickle.load(open('app/src/ocr/ver3/model_w.bin', 'rb'))
     return w
 
 
@@ -126,10 +127,9 @@ def image2text(car_image, model):
 
 
 def main(car_image):
-    model = model_load('model_rbf.bin')
+    model = model_load('app/src/ocr/ver3/model_rbf.bin')
     check = check_weights(car_image, model)
     return check
 
 
 #CALL:  car_number = main(short_filename_for_car_image)
-
